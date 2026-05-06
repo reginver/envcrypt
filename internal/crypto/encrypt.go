@@ -39,6 +39,10 @@ func Decrypt(ciphertext []byte, identities []age.Identity) ([]byte, error) {
 		return nil, fmt.Errorf("at least one identity is required")
 	}
 
+	if len(ciphertext) == 0 {
+		return nil, fmt.Errorf("ciphertext must not be empty")
+	}
+
 	r, err := age.Decrypt(bytes.NewReader(ciphertext), identities...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create age decryptor: %w", err)
