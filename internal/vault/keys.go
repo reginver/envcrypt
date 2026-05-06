@@ -10,9 +10,9 @@ import (
 )
 
 const (
-	DefaultKeyDir      = ".envcrypt"
-	DefaultPublicKey   = "key.pub"
-	DefaultPrivateKey  = "key.age"
+	DefaultKeyDir     = ".envcrypt"
+	DefaultPublicKey  = "key.pub"
+	DefaultPrivateKey = "key.age"
 )
 
 // KeyPaths holds resolved paths for a key pair.
@@ -79,4 +79,11 @@ func LoadPrivateKey(path string) (*crypto.PrivateKey, error) {
 		return nil, fmt.Errorf("failed to read private key file: %w", err)
 	}
 	return crypto.ParsePrivateKey(strings.TrimSpace(string(data)))
+}
+
+// KeysExist reports whether both the public and private key files exist at the given paths.
+func KeysExist(paths KeyPaths) (bool, bool) {
+	_, pubErr := os.Stat(paths.PublicKey)
+	_, privErr := os.Stat(paths.PrivateKey)
+	return pubErr == nil, privErr == nil
 }
