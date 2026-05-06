@@ -9,6 +9,30 @@ import (
 	"github.com/user/envcrypt/internal/vault"
 )
 
+// captureStdout redirects os.Stdout to a pipe, calls f, then restores stdout
+// and returns everything written to stdout as a string.
+func captureStdout(f func()) string {
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	f()
+
+	w.Close()
+	os.Stdout = old
+
+	var buf strings.Builder
+	tmp := make([]byte, 4096)
+	for {
+		n, e := r.Read(tmp)
+		buf.Write(tmp[:n])
+		if e != nil {
+			break
+		}
+	}
+	return buf.String()
+}
+
 func TestViewVault(t *testing.T) {
 	dir := t.TempDir()
 	pubPath := filepath.Join(dir, "pub.age")
@@ -39,29 +63,14 @@ func TestViewVault(t *testing.T) {
 		t.Fatalf("WriteFile: %v", err)
 	}
 
-	// Capture stdout via pipe.
-	old := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
+	var viewErr error
+	out := captureStdout(func() {
+		viewErr = vault.ViewVault(vaultPath, privPath, vault.ViewOptions{})
+	})
 
-	err = vault.ViewVault(vaultPath, privPath, vault.ViewOptions{})
-	w.Close()
-	os.Stdout = old
-
-	if err != nil {
-		t.Fatalf("ViewVault: %v", err)
+	if viewErr != nil {
+		t.Fatalf("ViewVault: %v", viewErr)
 	}
-
-	var buf strings.Builder
-	tmp := make([]byte, 4096)
-	for {
-		n, e := r.Read(tmp)
-		buf.Write(tmp[:n])
-		if e != nil {
-			break
-		}
-	}
-	out := buf.String()
 
 	for _, key := range []string{"DB_HOST", "DB_PASS", "APP_ENV"} {
 		if !strings.Contains(out, key) {
@@ -91,21 +100,14 @@ func TestViewVaultMaskAll(t *testing.T) {
 	cipher, _ := v.Encrypt([]byte(plaintext))
 	os.WriteFile(vaultPath, cipher, 0600)
 
-	old := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
+	var viewErr error
+	out := captureStdout(func() {
+		viewErr = vault.ViewVault(vaultPath, privPath, vault.ViewOptions{MaskAll: true})
+	})
 
-	err := vault.ViewVault(vaultPath, privPath, vault.ViewOptions{MaskAll: true})
-	w.Close()
-	os.Stdout = old
-
-	if err != nil {
-		t.Fatalf("ViewVault: %v", err)
+	if viewErr != nil {
+		t.Fatalf("ViewVault: %v", viewErr)
 	}
-
-	tmp := make([]byte, 4096)
-	n, _ := r.Read(tmp)
-	out := string(tmp[:n])
 
 	if strings.Contains(out, "topsecret") {
 		t.Error("expected value to be masked")
