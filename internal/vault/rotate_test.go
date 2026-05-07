@@ -89,3 +89,23 @@ func TestRotateKeysMissingVault(t *testing.T) {
 		t.Error("expected error for missing vault, got nil")
 	}
 }
+
+func TestRotateKeysMissingPrivKey(t *testing.T) {
+	dir := t.TempDir()
+
+	// Create a valid (but empty) vault file so the error comes from the missing key.
+	vaultPath := filepath.Join(dir, ".env.age")
+	if err := os.WriteFile(vaultPath, []byte{}, 0o644); err != nil {
+		t.Fatalf("write vault: %v", err)
+	}
+
+	err := vault.RotateKeys(
+		vaultPath,
+		filepath.Join(dir, ".env"),
+		filepath.Join(dir, "pub.age"),
+		filepath.Join(dir, "nonexistent_priv.age"),
+	)
+	if err == nil {
+		t.Error("expected error for missing private key, got nil")
+	}
+}
