@@ -11,6 +11,11 @@ import (
 
 // runExport handles the `export` subcommand, decrypting the vault and printing
 // its contents in the requested format (raw, export, or json).
+//
+// Formats:
+//   - raw:    KEY=VALUE pairs, one per line (suitable for sourcing without `export`)
+//   - export: export KEY=VALUE pairs, one per line (suitable for `eval $(envcrypt export)`)
+//   - json:   JSON object mapping keys to values
 func runExport(args []string) error {
 	fs := flag.NewFlagSet("export", flag.ContinueOnError)
 
@@ -30,15 +35,7 @@ func runExport(args []string) error {
 	}
 
 	// Parse optional key filter
-	var filterKeys []string
-	if *keys != "" {
-		for _, k := range strings.Split(*keys, ",") {
-			k = strings.TrimSpace(k)
-			if k != "" {
-				filterKeys = append(filterKeys, k)
-			}
-		}
-	}
+	filterKeys := parseKeyFilter(*keys)
 
 	// Validate format
 	switch *format {
@@ -62,4 +59,20 @@ func runExport(args []string) error {
 
 	fmt.Fprint(os.Stdout, output)
 	return nil
+}
+
+// parseKeyFilter splits a comma-separated list of key names into a slice,
+// trimming whitespace and ignoring empty entries. Returns nil if s is empty.
+func parseKeyFilter(s string) []string {
+	if s == "" {
+		return nil
+	}
+	var keys []string
+	for _, k := range strings.Split(s, ",") {
+		k = strings.TrimSpace(k)
+		if k != "" {
+			keys = append(keys, k)
+		}
+	}
+	return keys
 }
